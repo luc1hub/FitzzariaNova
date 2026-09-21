@@ -4,14 +4,17 @@ let tamanhoEscolhido = null;
 let quantidadeEscolhida = 1;
 
 function redirecionarSeFormaNaoEscolhida() {
-  const carrinho = obterCarrinho();
-  if (!carrinho.formaRecebimento) {
+  const carrinho = typeof obterCarrinho === 'function' ? obterCarrinho() : null;
+  if (carrinho && !carrinho.formaRecebimento) {
     window.location.href = "boas-vindas.html";
   }
 }
 
 function atualizarContadorCarrinho() {
-  document.getElementById("cart-count").textContent = contarItensCarrinho();
+  const contador = document.getElementById("cart-count");
+  if (contador && typeof contarItensCarrinho === 'function') {
+    contador.textContent = contarItensCarrinho();
+  }
 }
 
 function categoriaEstaSelecionada(categoriasSelecionadas, categoriaProduto) {
@@ -69,16 +72,20 @@ function aplicarFiltros() {
   const categoriasSelecionadas = obterValoresMarcados(".filtro-categoria");
   const faixasSelecionadas = obterValoresMarcados(".filtro-preco");
 
-  document.getElementById("filtro-todas").checked = categoriasSelecionadas.length === 0;
+  const filtroTodas = document.getElementById("filtro-todas");
+  if (filtroTodas) {
+    filtroTodas.checked = categoriasSelecionadas.length === 0;
+  }
 
   renderizarCardapio(categoriasSelecionadas, faixasSelecionadas);
 }
 
 function renderizarCardapio(categoriasSelecionadas, faixasSelecionadas) {
   let html = "";
+  const produtos = (typeof FITZZ !== 'undefined' && FITZZ.produtos) ? FITZZ.produtos : [];
 
-  for (let i = 0; i < FITZZ.produtos.length; i++) {
-    const produto = FITZZ.produtos[i];
+  for (let i = 0; i < produtos.length; i++) {
+    const produto = produtos[i];
 
     if (!categoriaEstaSelecionada(categoriasSelecionadas, produto.categoria)) {
       continue;
@@ -96,16 +103,21 @@ function renderizarCardapio(categoriasSelecionadas, faixasSelecionadas) {
     html += "<div class=\"foto\"><img src=\"" + produto.imagem + "\" alt=\"" + produto.nome + "\"></div>";
     html += "<div class=\"info\">";
     html += "<div class=\"nome\">" + produto.nome + "</div>";
-    html += "<div class=\"preco\">" + formatarPreco(produto.precoBase) + "</div>";
+    html += "<div class=\"preco\">" + (typeof formatarPreco === 'function' ? formatarPreco(produto.precoBase) : 'R$ ' + produto.precoBase) + "</div>";
     html += "</div>";
     html += "</button>";
   }
 
-  document.getElementById("cardapio-container").innerHTML = html;
+  const container = document.getElementById("cardapio-container");
+  if (container) {
+    container.innerHTML = html;
+  }
 }
 
 function abrirModalProduto(idProduto) {
-  produtoSelecionado = buscarProduto(idProduto);
+  produtoSelecionado = typeof buscarProduto === 'function' ? buscarProduto(idProduto) : null;
+  if (!produtoSelecionado) return;
+
   opcoesEscolhidas = [];
   tamanhoEscolhido = null;
   quantidadeEscolhida = 1;
@@ -115,9 +127,8 @@ function abrirModalProduto(idProduto) {
   document.getElementById("produtoModalFoto").alt = produtoSelecionado.nome;
   document.getElementById("produtoModalDescricao").textContent = produtoSelecionado.descricao;
   document.getElementById("qtyValor").textContent = "1";
-  document.getElementById("btnAdicionarCarrinho").disabled = true;
 
-  const opcoes = buscarOpcoesDoProduto(produtoSelecionado.idProduto);
+  const opcoes = typeof buscarOpcoesDoProduto === 'function' ? buscarOpcoesDoProduto(produtoSelecionado.idProduto) : [];
   const opcoesContainer = document.getElementById("produtoModalOpcoes");
 
   if (opcoes.length === 0) {
@@ -128,7 +139,7 @@ function abrirModalProduto(idProduto) {
       const opcao = opcoes[i];
       let precoTexto = "sem custo";
       if (opcao.valorAdicional > 0) {
-        precoTexto = "+ " + formatarPreco(opcao.valorAdicional);
+        precoTexto = "+ " + (typeof formatarPreco === 'function' ? formatarPreco(opcao.valorAdicional) : 'R$ ' + opcao.valorAdicional);
       }
       html += "<label class=\"opcao-row\">";
       html += "<span><input class=\"form-check-input me-2\" type=\"checkbox\" onchange=\"alternarOpcao(" + opcao.idOpcao + ", this.checked)\"> " + opcao.nome + "</span>";
@@ -138,15 +149,25 @@ function abrirModalProduto(idProduto) {
     opcoesContainer.innerHTML = html;
   }
 
+  const tamanhos = (typeof FITZZ !== 'undefined' && FITZZ.tamanhos) ? FITZZ.tamanhos : ["Média", "Grande"];
   let htmlTamanho = "";
-  for (let i = 0; i < FITZZ.tamanhos.length; i++) {
-    const tamanho = FITZZ.tamanhos[i];
+  for (let i = 0; i < tamanhos.length; i++) {
+    const tamanho = tamanhos[i];
+    const checado = i === 0 ? "checked" : "";
+    if (i === 0) tamanhoEscolhido = tamanho;
+
     htmlTamanho += "<div class=\"form-check\">";
-    htmlTamanho += "<input class=\"form-check-input\" type=\"radio\" name=\"tamanho\" id=\"tamanho-" + i + "\" onchange=\"escolherTamanho('" + tamanho + "')\">";
+    htmlTamanho += "<input class=\"form-check-input\" type=\"radio\" name=\"tamanho\" id=\"tamanho-" + i + "\" value=\"" + tamanho + "\" " + checado + " onchange=\"escolherTamanho('" + tamanho + "')\">";
     htmlTamanho += "<label class=\"form-check-label\" for=\"tamanho-" + i + "\">" + tamanho + "</label>";
     htmlTamanho += "</div>";
   }
   document.getElementById("produtoModalTamanho").innerHTML = htmlTamanho;
+
+  // Libera o botão de adicionar ao carrinho imediatamente
+  const btnAdd = document.getElementById("btnAdicionarCarrinho");
+  if (btnAdd) {
+    btnAdd.disabled = false;
+  }
 
   atualizarPrecoModal();
   new bootstrap.Modal(document.getElementById("produtoModal")).show();
@@ -154,13 +175,17 @@ function abrirModalProduto(idProduto) {
 
 function escolherTamanho(tamanho) {
   tamanhoEscolhido = tamanho;
-  document.getElementById("btnAdicionarCarrinho").disabled = false;
+  const btnAdd = document.getElementById("btnAdicionarCarrinho");
+  if (btnAdd) {
+    btnAdd.disabled = false;
+  }
+  atualizarPrecoModal();
 }
 
 function alternarOpcao(idOpcao, marcado) {
-  const opcao = buscarOpcaoPersonalizacao(idOpcao);
+  const opcao = typeof buscarOpcaoPersonalizacao === 'function' ? buscarOpcaoPersonalizacao(idOpcao) : null;
 
-  if (marcado) {
+  if (marcado && opcao) {
     opcoesEscolhidas.push(opcao);
   } else {
     const novaLista = [];
@@ -190,18 +215,35 @@ function diminuirQuantidadeModal() {
 }
 
 function atualizarPrecoModal() {
+  if (!produtoSelecionado) return;
   let precoUnitario = produtoSelecionado.precoBase;
   for (let i = 0; i < opcoesEscolhidas.length; i++) {
     precoUnitario = precoUnitario + opcoesEscolhidas[i].valorAdicional;
   }
-  document.getElementById("produtoModalPrecoTotal").textContent = formatarPreco(precoUnitario * quantidadeEscolhida);
+  const precoTotalElem = document.getElementById("produtoModalPrecoTotal");
+  if (precoTotalElem) {
+    precoTotalElem.textContent = typeof formatarPreco === 'function' 
+      ? formatarPreco(precoUnitario * quantidadeEscolhida) 
+      : "R$ " + (precoUnitario * quantidadeEscolhida).toFixed(2);
+  }
 }
 
 function confirmarAdicionarAoCarrinho() {
-  adicionarItemCarrinho(produtoSelecionado.idProduto, quantidadeEscolhida, tamanhoEscolhido, opcoesEscolhidas);
+  if (typeof adicionarItemCarrinho === 'function') {
+    adicionarItemCarrinho(produtoSelecionado.idProduto, quantidadeEscolhida, tamanhoEscolhido, opcoesEscolhidas);
+  }
   atualizarContadorCarrinho();
-  bootstrap.Modal.getInstance(document.getElementById("produtoModal")).hide();
-  new bootstrap.Toast(document.getElementById("toastAdicionado")).show();
+  
+  const modalElem = document.getElementById("produtoModal");
+  if (modalElem) {
+    const instance = bootstrap.Modal.getInstance(modalElem);
+    if (instance) instance.hide();
+  }
+  
+  const toastElem = document.getElementById("toastAdicionado");
+  if (toastElem) {
+    new bootstrap.Toast(toastElem).show();
+  }
 }
 
 redirecionarSeFormaNaoEscolhida();
