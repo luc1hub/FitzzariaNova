@@ -1,3 +1,27 @@
+const API_BASE_URL = 'https://fitzzariabackend.infy.click/fitzzaria-backend/api';
+
+// Função assíncrona que envia o pedido para o MySQL no InfinityFree
+async function salvarPedidoNoBanco(pedido) {
+  try {
+    const resposta = await fetch(`${API_BASE_URL}/pedidos.php`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(pedido)
+    });
+
+    if (resposta.ok) {
+      const resultado = await resposta.json();
+      console.log('Pedido gravado no banco de dados com sucesso:', resultado);
+    } else {
+      console.warn('Servidor respondeu com status:', resposta.status);
+    }
+  } catch (erro) {
+    console.error('Erro ao enviar pedido para o banco:', erro);
+  }
+}
+
 function listarPedidos() {
   const texto = localStorage.getItem("pedidos");
   if (texto === null) {
@@ -65,6 +89,9 @@ function criarPedido(dadosPedido) {
   const pedidos = listarPedidos();
   pedidos.push(pedido);
   salvarListaPedidos(pedidos);
+
+  // Envia o pedido criado em segundo plano para o banco MySQL do InfinityFree
+  salvarPedidoNoBanco(pedido);
 
   return pedido;
 }
