@@ -1,26 +1,5 @@
-const API_BASE_URL = 'https://fitzzariabackend.infy.click/fitzzaria-backend/api';
-
-// Função assíncrona que envia o pedido para o MySQL no InfinityFree
-async function salvarPedidoNoBanco(pedido) {
-  try {
-    const resposta = await fetch(`${API_BASE_URL}/pedidos.php`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(pedido)
-    });
-
-    if (resposta.ok) {
-      const resultado = await resposta.json();
-      console.log('Pedido gravado no banco de dados com sucesso:', resultado);
-    } else {
-      console.warn('Servidor respondeu com status:', resposta.status);
-    }
-  } catch (erro) {
-    console.error('Erro ao enviar pedido para o banco:', erro);
-  }
-}
+// URL da API no InfinityFree
+const API_BASE_URL = "https://fitzzariabackend.infy.click/fitzzaria-backend/api";
 
 function listarPedidos() {
   const texto = localStorage.getItem("pedidos");
@@ -61,14 +40,21 @@ function gerarIdentificadorPedido() {
 
 function criarPedido(dadosPedido) {
   let nomeRegiao = null;
-  if (dadosPedido.idRegiaoEntrega) {
+  if (dadosPedido.idRegiaoEntrega && typeof buscarRegiaoEntrega === 'function') {
     const regiao = buscarRegiaoEntrega(dadosPedido.idRegiaoEntrega);
     if (regiao !== null) {
       nomeRegiao = regiao.nome;
     }
   }
 
-  const formaPagamento = buscarFormaPagamento(dadosPedido.idFormaPagamento);
+  const formaPagamento = (typeof buscarFormaPagamento === 'function') 
+    ? buscarFormaPagamento(dadosPedido.idFormaPagamento) 
+    : null;
+
+  // Proteção para o status de confirmação
+  const statusInicial = (typeof FITZZ !== 'undefined' && FITZZ.statusPedido) 
+    ? FITZZ.statusPedido.CONFIRMADO 
+    : "CONFIRMADO";
 
   const pedido = {
     identificador: gerarIdentificadorPedido(),
@@ -80,8 +66,8 @@ function criarPedido(dadosPedido) {
     formaRecebimento: dadosPedido.formaRecebimento,
     regiaoEntrega: nomeRegiao,
     cep: dadosPedido.cep,
-    formaPagamento: formaPagamento ? formaPagamento.descricao : null,
-    statusAtual: FITZZ.statusPedido.CONFIRMADO,
+    formaPagamento: formaPagamento ? formaPagamento.descricao : dadosPedido.formaPagamento || null,
+    statusAtual: statusInicial,
     previsaoConclusao: null,
     clienteNotificado: false
   };
@@ -96,11 +82,30 @@ function criarPedido(dadosPedido) {
   return pedido;
 }
 
+// Função de envio seguro para o backend MySQL (InfinityFree)
+async function salvarPedidoNoBanco(pedido) {
+  try {
+    const resposta = await fetch(`${API_BASE_URL}/pedidos.php`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(pedido)
+    });
+    const dados = await resposta.json();
+    console.log("Pedido gravado no banco de dados com sucesso:", dados);
+  } catch (erro) {
+    console.warn("Não foi possível gravar no MySQL (salvo no localStorage):", erro);
+  }
+}
+
 function listarPedidosConfirmados() {
   const pedidos = listarPedidos();
   const confirmados = [];
+  const statusConfirmado = (typeof FITZZ !== 'undefined' && FITZZ.statusPedido) 
+    ? FITZZ.statusPedido.CONFIRMADO 
+    : "CONFIRMADO";
+
   for (let i = 0; i < pedidos.length; i++) {
-    if (pedidos[i].statusAtual === FITZZ.statusPedido.CONFIRMADO) {
+    if (pedidos[i].statusAtual === statusConfirmado) {
       confirmados.push(pedidos[i]);
     }
   }
@@ -122,7 +127,9 @@ function iniciarPreparoPedido(identificador) {
   if (pedido === null) {
     return;
   }
-  pedido.statusAtual = FITZZ.statusPedido.EM_PREPARACAO;
+  pedido.statusAtual = (typeof FITZZ !== 'undefined' && FITZZ.statusPedido) 
+    ? FITZZ.statusPedido.EM_PREPARACAO 
+    : "EM_PREPARACAO";
   atualizarPedido(pedido);
 }
 
@@ -131,10 +138,19 @@ function finalizarPreparoPedido(identificador) {
   if (pedido === null) {
     return;
   }
-  if (pedido.formaRecebimento === FITZZ.formaRecebimento.ENTREGA) {
-    pedido.statusAtual = FITZZ.statusPedido.SAIU_PARA_ENTREGA;
+  
+  const eEntrega = (typeof FITZZ !== 'undefined' && FITZZ.formaRecebimento)
+    ? pedido.formaRecebimento === FITZZ.formaRecebimento.ENTREGA
+    : pedido.formaRecebimento === "ENTREGA";
+
+  if (eEntrega) {
+    pedido.statusAtual = (typeof FITZZ !== 'undefined' && FITZZ.statusPedido) 
+      ? FITZZ.statusPedido.SAIU_PARA_ENTREGA 
+      : "SAIU_PARA_ENTREGA";
   } else {
-    pedido.statusAtual = FITZZ.statusPedido.PRONTO_PARA_RETIRADA;
+    pedido.statusAtual = (typeof FITZZ !== 'undefined' && FITZZ.statusPedido) 
+      ? FITZZ.statusPedido.PRONTO_PARA_RETIRADA 
+      : "PRONTO_PARA_RETIRADA";
   }
   atualizarPedido(pedido);
 }
@@ -153,10 +169,19 @@ function finalizarAtendimentoPedido(identificador) {
   if (pedido === null) {
     return;
   }
-  if (pedido.formaRecebimento === FITZZ.formaRecebimento.ENTREGA) {
-    pedido.statusAtual = FITZZ.statusPedido.ENTREGUE;
+
+  const eEntrega = (typeof FITZZ !== 'undefined' && FITZZ.formaRecebimento)
+    ? pedido.formaRecebimento === FITZZ.formaRecebimento.ENTREGA
+    : pedido.formaRecebimento === "ENTREGA";
+
+  if (eEntrega) {
+    pedido.statusAtual = (typeof FITZZ !== 'undefined' && FITZZ.statusPedido) 
+      ? FITZZ.statusPedido.ENTREGUE 
+      : "ENTREGUE";
   } else {
-    pedido.statusAtual = FITZZ.statusPedido.RETIRADO;
+    pedido.statusAtual = (typeof FITZZ !== 'undefined' && FITZZ.statusPedido) 
+      ? FITZZ.statusPedido.RETIRADO 
+      : "RETIRADO";
   }
   atualizarPedido(pedido);
 }
