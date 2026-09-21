@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fitzzaria — Acompanhar Pedido</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="container d-flex align-items-center justify-content-between">
+    <a href="index.html" class="back-link">←</a>
+    <span class="wordmark">Fitz<em>zaria</em></span>
+    <span style="width: 28px"></span>
+  </div>
+</header>
+
+<main class="container py-4" style="max-width: 480px">
+
+  <div id="busca-pedido">
+    <h1 class="h4 mb-3">Acompanhar Pedido</h1>
+    <p class="text-muted">Informe o código do pedido que você recebeu na confirmação.</p>
+    <div class="d-flex gap-2">
+      <input type="text" class="form-control" id="inputCodigo" placeholder="Ex.: FTZ482913" onkeydown="if (event.key === 'Enter') buscarPedidoDigitado()">
+      <button class="btn-fitz" onclick="buscarPedidoDigitado()">Buscar</button>
+    </div>
+    <p class="text-danger small mt-2 d-none" id="msgNaoEncontrado">Não encontramos um pedido com esse código.</p>
+  </div>
+
+  <div id="detalhe-pedido" class="d-none">
+    <p class="text-muted mb-1" id="pedido-obrigado">Obrigado pelo seu pedido! Acompanhe o status abaixo.</p>
+    <h1 class="h5 mb-4" id="pedido-id">Pedido #000000</h1>
+
+    <ul class="timeline" id="timeline"></ul>
+
+    <div class="summary-card mt-3">
+      <h2 class="h6 mb-3">Detalhes do Pedido</h2>
+      <div id="pedido-itens"></div>
+      <div class="summary-row"><span>Taxa de entrega</span><span id="pedido-taxa">R$ 0,00</span></div>
+      <div class="summary-row total"><span>Total</span><span id="pedido-total">R$ 0,00</span></div>
+    </div>
+
+    <div class="summary-card mt-3" id="bloco-entrega">
+      <h2 class="h6 mb-2">Previsão</h2>
+      <p class="mb-3" id="pedido-previsao">—</p>
+      <h2 class="h6 mb-2" id="titulo-endereco">Endereço</h2>
+      <p class="mb-3" id="pedido-endereco">—</p>
+      <a class="btn-fitz-outline d-block text-center text-decoration-none" id="btnFalarLoja" href="#">Falar com a loja</a>
+    </div>
+
+    <a href="acompanhamento.html" class="d-block text-center small mt-3">buscar outro pedido</a>
+  </div>
+</main>
+
+<div class="bottom-nav-spacer"></div>
+<nav class="bottom-nav">
+  <a href="index.html"><span class="icon">🏠</span>Cardápio</a>
+  <a href="carrinho.html"><span class="icon">🛒</span>Carrinho</a>
+  <a href="acompanhamento.html" class="active"><span class="icon">📦</span>Acompanhar</a>
+</nav>
+
+<script src="js/data.js"></script>
+<script src="js/pedidos.js"></script>
+<script src="js/acompanhamento.js"></script>
+</body>
+</html>
