@@ -1,3 +1,31 @@
+// URL base da sua API no InfinityFree
+const API_BASE_URL = 'https://fitzzariabackend.infy.click/fitzzaria-backend/api';
+
+// Verifica com o PHP se o funcionário está autenticado
+async function verificarAutenticacao() {
+    try {
+        const resposta = await fetch(`${API_BASE_URL}/auth.php`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include' // OBRIGATÓRIO: envia os cookies da sessão entre Vercel e InfinityFree
+        });
+
+        const dados = await resposta.json();
+
+        if (!resposta.ok || !dados.autenticado) {
+            // Se não estiver autenticado, redireciona para a página de login
+            window.location.href = 'login.html'; 
+        }
+    } catch (erro) {
+        console.error('Erro ao verificar sessão com o servidor:', erro);
+    }
+}
+
+// Executa a verificação ao carregar a página
+verificarAutenticacao();
+
+
+
 let identificadorEmAceite = null;
 
 function formatarHora(dataIso) {
