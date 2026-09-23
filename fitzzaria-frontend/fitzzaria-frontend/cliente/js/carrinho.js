@@ -120,3 +120,28 @@ function contarItensCarrinho() {
 function limparCarrinho() {
   localStorage.removeItem("carrinho");
 }
+
+<TesteSupabase/>
+
+import { useEffect } from 'react'
+import { supabase } from './supabaseClient'
+
+export function TesteSupabase() {
+  useEffect(() => {
+    async function testarConexao() {
+      const { data, error } = await supabase
+        .from('teste_fitzzaria')
+        .select('*')
+
+      if (error) {
+        console.error('❌ Erro ao conectar ao Supabase:', error.message)
+      } else {
+        console.log('✅ Sucesso! Dados recebidos do Supabase:', data)
+      }
+    }
+
+    testarConexao()
+  }, [])
+
+  return null // Não altera nada no layout visual da página
+}
