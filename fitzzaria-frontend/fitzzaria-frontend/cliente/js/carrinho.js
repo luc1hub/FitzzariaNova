@@ -156,18 +156,23 @@ async function finalizarPedido() {
 
   try {
     // Usa o cliente global do Supabase instanciado no supabaseClient.js
+    // O .select() instrui o Supabase a devolver os dados do registo inserido
     const { data, error } = await window.supabaseClient
       .from('pedidos')
-      .insert([novoPedido]);
+      .insert([novoPedido])
+      .select();
 
     if (error) {
       console.error('❌ Erro ao guardar o pedido:', error.message);
       alert('Erro ao enviar pedido: ' + error.message);
     } else {
       console.log('✅ Pedido enviado com sucesso ao Supabase!', data);
-      alert('Pedido realizado com sucesso!');
+      
+      const pedidoCriado = data[0];
       limparCarrinho();
-      window.location.reload();
+      
+      // Redireciona diretamente para a tela de acompanhamento com o ID real
+      window.location.href = `acompanhamento.html?pedido=${pedidoCriado.id}`;
     }
   } catch (err) {
     console.error('❌ Erro inesperado ao conectar ao Supabase:', err);
