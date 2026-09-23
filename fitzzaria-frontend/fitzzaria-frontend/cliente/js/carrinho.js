@@ -70,7 +70,7 @@ function alterarQuantidadeItemCarrinho(idItem, diferenca) {
 function definirFormaRecebimento(formaRecebimento) {
   const carrinho = obterCarrinho();
   carrinho.formaRecebimento = formaRecebimento;
-  if (formaRecebimento === FITZZ.formaRecebimento.RETIRADA) {
+  if (typeof FITZZ !== 'undefined' && formaRecebimento === FITZZ.formaRecebimento.RETIRADA) {
     carrinho.idRegiaoEntrega = null;
     carrinho.cep = null;
   }
@@ -79,9 +79,13 @@ function definirFormaRecebimento(formaRecebimento) {
 
 function definirCepEntrega(cep) {
   const carrinho = obterCarrinho();
-  const regiao = calcularRegiaoPorCep(cep);
-  carrinho.cep = cep;
-  carrinho.idRegiaoEntrega = regiao.idRegiao;
+  if (typeof calcularRegiaoPorCep === 'function') {
+    const regiao = calcularRegiaoPorCep(cep);
+    carrinho.cep = cep;
+    carrinho.idRegiaoEntrega = regiao ? regiao.idRegiao : null;
+  } else {
+    carrinho.cep = cep;
+  }
   salvarCarrinho(carrinho);
 }
 
@@ -100,14 +104,17 @@ function calcularSubtotalCarrinho() {
 
 function calcularTaxaEntregaCarrinho() {
   const carrinho = obterCarrinho();
-  if (carrinho.formaRecebimento !== FITZZ.formaRecebimento.ENTREGA) {
+  if (typeof FITZZ !== 'undefined' && carrinho.formaRecebimento !== FITZZ.formaRecebimento.ENTREGA) {
     return 0;
   }
-  const regiao = buscarRegiaoEntrega(carrinho.idRegiaoEntrega);
-  if (regiao === null) {
-    return 0;
+  if (typeof buscarRegiaoEntrega === 'function') {
+    const regiao = buscarRegiaoEntrega(carrinho.idRegiaoEntrega);
+    if (regiao === null) {
+      return 0;
+    }
+    return regiao.taxaFixa;
   }
-  return regiao.taxaFixa;
+  return 0;
 }
 
 function calcularTotalCarrinho() {
@@ -149,32 +156,40 @@ export async function finalizarPedido() {
     itens: carrinho.itens
   };
 
-  const { data, error } = await supabase
-    .from('pedidos')
-    .insert([novoPedido]);
+  try {
+    const { data, error } = await supabase
+      .from('pedidos')
+      .insert([novoPedido]);
 
-  if (error) {
-    console.error('❌ Erro ao guardar o pedido:', error.message);
-    alert('Erro ao enviar pedido: ' + error.message);
-  } else {
-    console.log('✅ Pedido enviado com sucesso ao Supabase!', data);
-    alert('Pedido realizado com sucesso!');
-    limparCarrinho();
-    window.location.reload();
+    if (error) {
+      console.error('❌ Erro ao guardar o pedido:', error.message);
+      alert('Erro ao enviar pedido: ' + error.message);
+    } else {
+      console.log('✅ Pedido enviado com sucesso ao Supabase!', data);
+      alert('Pedido realizado com sucesso!');
+      limparCarrinho();
+      window.location.reload();
+    }
+  } catch (err) {
+    console.error('❌ Erro inesperado ao conectar ao Supabase:', err);
+    alert('Erro de conexão ao processar o pedido.');
   }
 }
 
-// Torna a função visível no escopo global para o onclick="finalizarPedido()" do HTML funcionar
+// Expõe no window para que o onclick="finalizarPedido()" no HTML funcione com ES Modules
 window.finalizarPedido = finalizarPedido;
 
 // ==========================================
-// VINCULAÇÃO AUTOMÁTICA DE EVENTO (GARANTIA)
+// INICIALIZAÇÃO DE EVENTOS
 // ==========================================
 
 document.addEventListener("DOMContentLoaded", () => {
   const botaoFinalizar = document.getElementById("btnFinalizar");
 
   if (botaoFinalizar) {
-    botaoFinalizar.addEventListener("click", finalizarPedido);
+    botaoFinalizar.addEventListener("click", async (e) => {
+      e.preventDefault();
+      await finalizarPedido();
+    });
   }
 });
