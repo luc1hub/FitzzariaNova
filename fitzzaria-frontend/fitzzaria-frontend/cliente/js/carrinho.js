@@ -1,3 +1,9 @@
+import { supabase } from './supabaseClient.js';
+
+// ==========================================
+// FUNÇÕES DE GERENCIAMENTO DO CARRINHO (LOCALSTORAGE)
+// ==========================================
+
 function obterCarrinho() {
   const texto = localStorage.getItem("carrinho");
   if (texto === null) {
@@ -121,27 +127,54 @@ function limparCarrinho() {
   localStorage.removeItem("carrinho");
 }
 
-<TesteSupabase/>
+// ==========================================
+// INTEGRAÇÃO COM O SUPABASE
+// ==========================================
 
-import { useEffect } from 'react'
-import { supabase } from './supabaseClient'
+export async function finalizarPedido() {
+  const carrinho = obterCarrinho();
 
-export function TesteSupabase() {
-  useEffect(() => {
-    async function testarConexao() {
-      const { data, error } = await supabase
-        .from('teste_fitzzaria')
-        .select('*')
+  if (!carrinho.itens || carrinho.itens.length === 0) {
+    alert("O seu carrinho está vazio!");
+    return;
+  }
 
-      if (error) {
-        console.error('❌ Erro ao conectar ao Supabase:', error.message)
-      } else {
-        console.log('✅ Sucesso! Dados recebidos do Supabase:', data)
-      }
-    }
+  const novoPedido = {
+    forma_recebimento: carrinho.formaRecebimento,
+    cep: carrinho.cep,
+    id_regiao_entrega: carrinho.idRegiaoEntrega,
+    subtotal: calcularSubtotalCarrinho(),
+    taxa_entrega: calcularTaxaEntregaCarrinho(),
+    total: calcularTotalCarrinho(),
+    itens: carrinho.itens
+  };
 
-    testarConexao()
-  }, [])
+  const { data, error } = await supabase
+    .from('pedidos')
+    .insert([novoPedido]);
 
-  return null // Não altera nada no layout visual da página
+  if (error) {
+    console.error('❌ Erro ao guardar o pedido:', error.message);
+    alert('Erro ao enviar pedido: ' + error.message);
+  } else {
+    console.log('✅ Pedido enviado com sucesso ao Supabase!', data);
+    alert('Pedido realizado com sucesso!');
+    limparCarrinho();
+    window.location.reload();
+  }
 }
+
+// Torna a função visível no escopo global para o onclick="finalizarPedido()" do HTML funcionar
+window.finalizarPedido = finalizarPedido;
+
+// ==========================================
+// VINCULAÇÃO AUTOMÁTICA DE EVENTO (GARANTIA)
+// ==========================================
+
+document.addEventListener("DOMContentLoaded", () => {
+  const botaoFinalizar = document.getElementById("btnFinalizar");
+
+  if (botaoFinalizar) {
+    botaoFinalizar.addEventListener("click", finalizarPedido);
+  }
+});
