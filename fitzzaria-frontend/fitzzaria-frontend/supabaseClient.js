@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+// Substitua o conteúdo do supabaseClient.js por isto:
+const SUPABASE_URL = 'https://vupacqwmayhmfqdqpxge.supabase.co'; // Substitua se a URL for diferente
+const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON_AQUI'; // Coloque a sua chave pública do Supabase
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Cria o cliente global do Supabase no navegador
+window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

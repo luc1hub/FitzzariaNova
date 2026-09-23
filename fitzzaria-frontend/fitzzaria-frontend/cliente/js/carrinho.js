@@ -1,5 +1,3 @@
-import { supabase } from './supabaseClient.js';
-
 // ==========================================
 // FUNÇÕES DE GERENCIAMENTO DO CARRINHO (LOCALSTORAGE)
 // ==========================================
@@ -135,10 +133,10 @@ function limparCarrinho() {
 }
 
 // ==========================================
-// INTEGRAÇÃO COM O SUPABASE
+// APENAS A GRAVAÇÃO NO SUPABASE
 // ==========================================
 
-export async function finalizarPedido() {
+async function finalizarPedido() {
   const carrinho = obterCarrinho();
 
   if (!carrinho.itens || carrinho.itens.length === 0) {
@@ -157,7 +155,8 @@ export async function finalizarPedido() {
   };
 
   try {
-    const { data, error } = await supabase
+    // Usa o cliente global do Supabase instanciado no supabaseClient.js
+    const { data, error } = await window.supabaseClient
       .from('pedidos')
       .insert([novoPedido]);
 
@@ -175,21 +174,3 @@ export async function finalizarPedido() {
     alert('Erro de conexão ao processar o pedido.');
   }
 }
-
-// Expõe no window para que o onclick="finalizarPedido()" no HTML funcione com ES Modules
-window.finalizarPedido = finalizarPedido;
-
-// ==========================================
-// INICIALIZAÇÃO DE EVENTOS
-// ==========================================
-
-document.addEventListener("DOMContentLoaded", () => {
-  const botaoFinalizar = document.getElementById("btnFinalizar");
-
-  if (botaoFinalizar) {
-    botaoFinalizar.addEventListener("click", async (e) => {
-      e.preventDefault();
-      await finalizarPedido();
-    });
-  }
-});
