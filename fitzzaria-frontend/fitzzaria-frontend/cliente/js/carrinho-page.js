@@ -189,35 +189,59 @@ function atualizarResumo() {
   }
 }
 
-function finalizarPedido() {
+async function finalizarPedido() {
   const carrinho = typeof obterCarrinho === 'function' ? obterCarrinho() : { itens: [] };
   const subtotal = typeof calcularSubtotalCarrinho === 'function' ? calcularSubtotalCarrinho() : 0;
   const taxaEntrega = typeof calcularTaxaEntregaCarrinho === 'function' ? calcularTaxaEntregaCarrinho() : 0;
 
-  if (typeof criarPedido === 'function') {
-    const pedido = criarPedido({
-      itens: carrinho.itens,
-      subtotal: subtotal,
-      taxaEntrega: taxaEntrega,
-      valorTotal: subtotal + taxaEntrega,
-      formaRecebimento: carrinho.formaRecebimento,
-      idRegiaoEntrega: carrinho.idRegiaoEntrega,
-      cep: carrinho.cep,
-      idFormaPagamento: idFormaPagamentoEscolhida
-    });
+  if (!carrinho.itens || carrinho.itens.length === 0) {
+    alert("O seu carrinho está vazio!");
+    return;
+  }
 
+  if (idFormaPagamentoEscolhida === null) {
+    alert("Escolha a forma de pagamento para finalizar.");
+    return;
+  }
+
+  // 1. Prepara o objeto com os mesmos dados do seu fluxo original
+  const novoPedido = {
+    forma_recebimento: carrinho.formaRecebimento || 'Entrega',
+    cep: carrinho.cep || null,
+    id_regiao_entrega: carrinho.idRegiaoEntrega || null,
+    subtotal: subtotal,
+    taxa_entrega: taxaEntrega,
+    total: subtotal + taxaEntrega,
+    itens: carrinho.itens
+  };
+
+  try {
+    // 2. Envia para o Supabase
+    const { data, error } = await window.supabaseClient
+      .from('pedidos')
+      .insert([novoPedido])
+      .select();
+
+    if (error) {
+      console.error("Erro no Supabase:", error);
+      alert("Erro ao enviar pedido: " + error.message);
+      return;
+    }
+
+    // 3. Executa a limpeza original
     if (typeof limparCarrinho === 'function') {
       limparCarrinho();
     }
 
-    if (pedido && pedido.identificador) {
-      window.location.href = "confirmacao.html?pedido=" + pedido.identificador;
-    }
-  } else {
-    alert("Erro ao processar o pedido. Tente novamente.");
+    // 4. Redireciona para o acompanhamento usando o ID real do banco
+    const idPedido = data[0].id;
+    window.location.href = "acompanhamento.html?pedido=" + idPedido;
+
+  } catch (err) {
+    console.error("Erro de conexão:", err);
+    alert("Erro de conexão ao processar o pedido.");
   }
 }
-
 renderizarItensCarrinho();
 renderizarFormasPagamento();
 atualizarContadorCarrinho();
