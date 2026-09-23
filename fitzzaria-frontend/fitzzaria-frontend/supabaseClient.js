@@ -1,6 +1,5 @@
-// Substitua o conteúdo do supabaseClient.js por isto:
-const SUPABASE_URL = 'https://vupacqwmayhmfqdqpxge.supabase.co'; // Substitua se a URL for diferente
-const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON_AQUI'; // Coloque a sua chave pública do Supabase
+const SUPABASE_URL = 'https://vupacqwmayhmfqdqpxge.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1cGFjcXdtYXlobWZxZHFweGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxODg5ODUsImV4cCI6MjEwNTc2NDk4NX0.EwUZqDaJAjQVg-E7Yglr5Gt7F7Ng7sS-w07V6mWiygE';
 
-// Cria o cliente global do Supabase no navegador
+// Instancia o cliente global do Supabase para uso no navegador
 window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
