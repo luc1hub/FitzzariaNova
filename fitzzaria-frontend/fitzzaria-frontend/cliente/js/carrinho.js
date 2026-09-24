@@ -172,7 +172,7 @@ async function finalizarPedido() {
       limparCarrinho();
       
       // Redireciona diretamente para a tela de acompanhamento com o ID real
-      window.location.href = `acompanhamento.html?pedido=${pedidoCriado.id}`;
+      window.location.href = `confirmacao.html?pedido=${pedidoCriado.id}`;
     }
   } catch (err) {
     console.error('❌ Erro inesperado ao conectar ao Supabase:', err);
