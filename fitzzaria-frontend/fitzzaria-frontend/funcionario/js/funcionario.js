@@ -146,18 +146,13 @@ function montarColuna(titulo, pedidos, montarCartaoFuncao) {
   return html;
 }
 
-async function renderizarBoard() {
-  // Busca lista de pedidos de forma assíncrona do Supabase
-  const todos = await listarPedidos();
 
-  const confirmados = [];
-  const emPreparo = [];
-  const prontosOuSaiu = [];
-  const concluidos = [];
-
-  for (let i = 0; i < todos.length; i++) {
+for (let i = 0; i < todos.length; i++) {
     const pedido = todos[i];
-    const status = pedido.status_atual || pedido.statusAtual;
+    
+    // Lê o status, remove as aspas inseridas pelo Supabase e converte para maiúsculo
+    const statusBruto = pedido.status_atual || pedido.statusAtual || "";
+    const status = String(statusBruto).replace(/['"]/g, "").trim().toUpperCase();
 
     if (status === FITZZ.statusPedido.CONFIRMADO) {
       confirmados.push(pedido);
@@ -170,6 +165,7 @@ async function renderizarBoard() {
     }
   }
 
+  
   let html = "";
   html += montarColuna("Confirmado", confirmados, montarCartaoConfirmado);
   html += montarColuna("Em preparo", emPreparo, montarCartaoEmPreparo);
