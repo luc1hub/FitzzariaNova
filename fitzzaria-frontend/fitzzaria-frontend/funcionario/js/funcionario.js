@@ -7,13 +7,12 @@ async function verificarAutenticacao() {
         const resposta = await fetch(`${API_BASE_URL}/auth.php`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include' // OBRIGATÓRIO: envia os cookies da sessão entre Vercel e InfinityFree
+            credentials: 'include' // OBRIGATÓRIO: envia os cookies da sessão
         });
 
         const dados = await resposta.json();
 
         if (!resposta.ok || !dados.autenticado) {
-            // Se não estiver autenticado, redireciona para a página de login
             window.location.href = 'login.html'; 
         }
     } catch (erro) {
@@ -25,41 +24,51 @@ async function verificarAutenticacao() {
 verificarAutenticacao();
 
 
-
 let identificadorEmAceite = null;
 
 function formatarHora(dataIso) {
+  if (!dataIso) return "";
   const data = new Date(dataIso);
   return data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
 function montarListaDeItens(pedido) {
   let html = "<ul>";
-  for (let i = 0; i < pedido.itens.length; i++) {
-    html += "<li>" + pedido.itens[i].quantidade + "× " + pedido.itens[i].nome + "</li>";
+  const itens = pedido.itens || [];
+  for (let i = 0; i < itens.length; i++) {
+    const qtd = itens[i].quantidade || 1;
+    const nome = itens[i].nome || itens[i].titulo || "Item";
+    html += "<li>" + qtd + "× " + nome + "</li>";
   }
   html += "</ul>";
   return html;
 }
 
 function textoRecebimento(pedido) {
-  if (pedido.formaRecebimento === FITZZ.formaRecebimento.ENTREGA) {
-    return "Entrega — " + pedido.regiaoEntrega;
+  const forma = pedido.forma_recebimento || pedido.formaRecebimento;
+  const regiao = pedido.regiao_entrega || pedido.regiaoEntrega || "";
+
+  if (forma === FITZZ.formaRecebimento.ENTREGA || forma === "ENTREGA") {
+    return "Entrega — " + regiao;
   }
   return "Retirada na loja";
 }
 
 function montarCartaoConfirmado(pedido) {
+  const idExibicao = pedido.id || pedido.identificador;
+  const previsao = pedido.previsao_conclusao || pedido.previsaoConclusao;
+  const dataHora = pedido.created_at || pedido.dataHora;
+
   let html = "<div class=\"order-card\">";
-  html += "<div class=\"id\">" + pedido.identificador + "</div>";
-  html += "<div class=\"meta\">" + textoRecebimento(pedido) + " · " + formatarHora(pedido.dataHora) + "</div>";
+  html += "<div class=\"id\">#" + idExibicao + "</div>";
+  html += "<div class=\"meta\">" + textoRecebimento(pedido) + " · " + formatarHora(dataHora) + "</div>";
   html += montarListaDeItens(pedido);
 
-  if (pedido.previsaoConclusao) {
-    html += "<div class=\"prazo\">previsão " + formatarHora(pedido.previsaoConclusao) + "</div>";
-    html += "<div class=\"actions\"><button class=\"btn-fitz-olive\" onclick=\"iniciarPreparoClick('" + pedido.identificador + "')\">Iniciar preparo</button></div>";
+  if (previsao) {
+    html += "<div class=\"prazo\">previsão " + formatarHora(previsao) + "</div>";
+    html += "<div class=\"actions\"><button class=\"btn-fitz-olive\" onclick=\"iniciarPreparoClick('" + idExibicao + "')\">Iniciar preparo</button></div>";
   } else {
-    html += "<div class=\"actions\"><button class=\"btn-fitz\" onclick=\"abrirPrevisao('" + pedido.identificador + "')\">Aceitar pedido</button></div>";
+    html += "<div class=\"actions\"><button class=\"btn-fitz\" onclick=\"abrirPrevisao('" + idExibicao + "')\">Aceitar pedido</button></div>";
   }
 
   html += "</div>";
@@ -67,36 +76,42 @@ function montarCartaoConfirmado(pedido) {
 }
 
 function montarCartaoEmPreparo(pedido) {
+  const idExibicao = pedido.id || pedido.identificador;
+
   let html = "<div class=\"order-card\">";
-  html += "<div class=\"id\">" + pedido.identificador + "</div>";
+  html += "<div class=\"id\">#" + idExibicao + "</div>";
   html += "<div class=\"meta\">" + textoRecebimento(pedido) + "</div>";
   html += montarListaDeItens(pedido);
-  html += "<div class=\"actions\"><button class=\"btn-fitz-olive\" onclick=\"finalizarPreparoClick('" + pedido.identificador + "')\">Finalizar preparo</button></div>";
+  html += "<div class=\"actions\"><button class=\"btn-fitz-olive\" onclick=\"finalizarPreparoClick('" + idExibicao + "')\">Finalizar preparo</button></div>";
   html += "</div>";
   return html;
 }
 
 function montarCartaoProntoOuSaiu(pedido) {
+  const idExibicao = pedido.id || pedido.identificador;
+  const statusAtual = pedido.status_atual || pedido.statusAtual;
+  const clienteNotificado = pedido.cliente_notificado ?? pedido.clienteNotificado;
+
   let rotuloStatus = "Pronto para retirada";
-  if (pedido.statusAtual === FITZZ.statusPedido.SAIU_PARA_ENTREGA) {
+  if (statusAtual === FITZZ.statusPedido.SAIU_PARA_ENTREGA) {
     rotuloStatus = "Saiu para entrega";
   }
 
   let rotuloFinalizar = "Marcar como retirado";
-  if (pedido.statusAtual === FITZZ.statusPedido.SAIU_PARA_ENTREGA) {
+  if (statusAtual === FITZZ.statusPedido.SAIU_PARA_ENTREGA) {
     rotuloFinalizar = "Confirmar entrega";
   }
 
   let html = "<div class=\"order-card\">";
-  html += "<div class=\"id\">" + pedido.identificador + "</div>";
+  html += "<div class=\"id\">#" + idExibicao + "</div>";
   html += "<div class=\"meta\">" + textoRecebimento(pedido) + " · " + rotuloStatus + "</div>";
   html += montarListaDeItens(pedido);
 
-  if (pedido.clienteNotificado) {
+  if (clienteNotificado) {
     html += "<div class=\"prazo\">cliente notificado</div>";
-    html += "<div class=\"actions\"><button class=\"btn-fitz-olive\" onclick=\"finalizarAtendimentoClick('" + pedido.identificador + "')\">" + rotuloFinalizar + "</button></div>";
+    html += "<div class=\"actions\"><button class=\"btn-fitz-olive\" onclick=\"finalizarAtendimentoClick('" + idExibicao + "')\">" + rotuloFinalizar + "</button></div>";
   } else {
-    html += "<div class=\"actions\"><button class=\"btn-fitz\" onclick=\"notificarClienteClick('" + pedido.identificador + "')\">Notificar Cliente</button></div>";
+    html += "<div class=\"actions\"><button class=\"btn-fitz\" onclick=\"notificarClienteClick('" + idExibicao + "')\">Notificar Cliente</button></div>";
   }
 
   html += "</div>";
@@ -104,9 +119,12 @@ function montarCartaoProntoOuSaiu(pedido) {
 }
 
 function montarCartaoConcluido(pedido) {
+  const idExibicao = pedido.id || pedido.identificador;
+  const statusAtual = pedido.status_atual || pedido.statusAtual;
+
   let html = "<div class=\"order-card\">";
-  html += "<div class=\"id\">" + pedido.identificador + "</div>";
-  html += "<div class=\"meta\">" + textoRecebimento(pedido) + " · " + FITZZ.statusLabel[pedido.statusAtual] + "</div>";
+  html += "<div class=\"id\">#" + idExibicao + "</div>";
+  html += "<div class=\"meta\">" + textoRecebimento(pedido) + " · " + (FITZZ.statusLabel[statusAtual] || statusAtual) + "</div>";
   html += "</div>";
   return html;
 }
@@ -128,8 +146,9 @@ function montarColuna(titulo, pedidos, montarCartaoFuncao) {
   return html;
 }
 
-function renderizarBoard() {
-  const todos = listarPedidos();
+async function renderizarBoard() {
+  // Busca lista de pedidos de forma assíncrona do Supabase
+  const todos = await listarPedidos();
 
   const confirmados = [];
   const emPreparo = [];
@@ -138,12 +157,13 @@ function renderizarBoard() {
 
   for (let i = 0; i < todos.length; i++) {
     const pedido = todos[i];
+    const status = pedido.status_atual || pedido.statusAtual;
 
-    if (pedido.statusAtual === FITZZ.statusPedido.CONFIRMADO) {
+    if (status === FITZZ.statusPedido.CONFIRMADO) {
       confirmados.push(pedido);
-    } else if (pedido.statusAtual === FITZZ.statusPedido.EM_PREPARACAO) {
+    } else if (status === FITZZ.statusPedido.EM_PREPARACAO) {
       emPreparo.push(pedido);
-    } else if (pedido.statusAtual === FITZZ.statusPedido.PRONTO_PARA_RETIRADA || pedido.statusAtual === FITZZ.statusPedido.SAIU_PARA_ENTREGA) {
+    } else if (status === FITZZ.statusPedido.PRONTO_PARA_RETIRADA || status === FITZZ.statusPedido.SAIU_PARA_ENTREGA) {
       prontosOuSaiu.push(pedido);
     } else {
       concluidos.push(pedido);
@@ -156,7 +176,10 @@ function renderizarBoard() {
   html += montarColuna("Pronto / a caminho", prontosOuSaiu, montarCartaoProntoOuSaiu);
   html += montarColuna("Concluído", concluidos, montarCartaoConcluido);
 
-  document.getElementById("board").innerHTML = html;
+  const elBoard = document.getElementById("board");
+  if (elBoard) {
+    elBoard.innerHTML = html;
+  }
 }
 
 function abrirPrevisao(identificador) {
@@ -164,64 +187,37 @@ function abrirPrevisao(identificador) {
   new bootstrap.Modal(document.getElementById("previsaoModal")).show();
 }
 
-function confirmarPrevisao() {
+async function confirmarPrevisao() {
   const minutos = Number(document.getElementById("inputMinutos").value) || 30;
-  aceitarPedido(identificadorEmAceite, minutos);
+  await aceitarPedido(identificadorEmAceite, minutos);
   bootstrap.Modal.getInstance(document.getElementById("previsaoModal")).hide();
-  renderizarBoard();
+  await renderizarBoard();
 }
 
-function iniciarPreparoClick(identificador) {
-  iniciarPreparoPedido(identificador);
-  renderizarBoard();
+async function iniciarPreparoClick(identificador) {
+  await iniciarPreparoPedido(identificador);
+  await renderizarBoard();
 }
 
-function finalizarPreparoClick(identificador) {
-  finalizarPreparoPedido(identificador);
-  renderizarBoard();
+async function finalizarPreparoClick(identificador) {
+  await finalizarPreparoPedido(identificador);
+  await renderizarBoard();
 }
 
-function notificarClienteClick(identificador) {
-  notificarClientePedido(identificador);
-  renderizarBoard();
+async function notificarClienteClick(identificador) {
+  await notificarClientePedido(identificador);
+  await renderizarBoard();
 }
 
-function finalizarAtendimentoClick(identificador) {
-  finalizarAtendimentoPedido(identificador);
-  renderizarBoard();
+async function finalizarAtendimentoClick(identificador) {
+  await finalizarAtendimentoPedido(identificador);
+  await renderizarBoard();
 }
 
-function gerarPedidoTeste() {
-  const produto = FITZZ.produtos[Math.floor(Math.random() * 3)];
-  const entrega = Math.random() > 0.5;
-  const regiao = FITZZ.regioesEntrega[0];
+// Atualização automática a cada 5 segundos
+setInterval(renderizarBoard, 5000);
 
-  let taxaEntrega = 0;
-  let idRegiaoEntrega = null;
-  let cep = null;
-  let formaRecebimento = FITZZ.formaRecebimento.RETIRADA;
-
-  if (entrega) {
-    taxaEntrega = regiao.taxaFixa;
-    idRegiaoEntrega = regiao.idRegiao;
-    cep = "01302907";
-    formaRecebimento = FITZZ.formaRecebimento.ENTREGA;
-  }
-
-  criarPedido({
-    itens: [{ idProduto: produto.idProduto, nome: produto.nome, tamanho: "Média", quantidade: 1, precoUnitario: produto.precoBase, opcoes: [] }],
-    subtotal: produto.precoBase,
-    taxaEntrega: taxaEntrega,
-    valorTotal: produto.precoBase + taxaEntrega,
-    formaRecebimento: formaRecebimento,
-    idRegiaoEntrega: idRegiaoEntrega,
-    cep: cep,
-    idFormaPagamento: 1
-  });
-
+// Primeira renderização ao carregar o DOM
+document.addEventListener('DOMContentLoaded', () => {
   renderizarBoard();
-}
-
-window.addEventListener("storage", renderizarBoard);
-setInterval(renderizarBoard, 2500);
-renderizarBoard();
+});

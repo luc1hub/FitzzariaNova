@@ -1,135 +1,117 @@
-function listarPedidos() {
-  const texto = localStorage.getItem("pedidos");
-  if (texto === null) {
+// Retorna todos os pedidos da base do Supabase
+async function listarPedidos() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('pedidos')
+      .select('*')
+      .order('id', { ascending: false });
+
+    if (error) {
+      console.error("Erro ao buscar pedidos:", error.message);
+      return [];
+    }
+    return data || [];
+  } catch (err) {
+    console.error("Erro de conexão:", err);
     return [];
   }
-  return JSON.parse(texto);
 }
 
-function salvarListaPedidos(pedidos) {
-  localStorage.setItem("pedidos", JSON.stringify(pedidos));
-}
-
-function buscarPedidoPorId(identificador) {
-  const pedidos = listarPedidos();
+// Procura o pedido pelo ID/identificador
+async function buscarPedidoPorId(identificador) {
+  const pedidos = await listarPedidos();
   for (let i = 0; i < pedidos.length; i++) {
-    if (pedidos[i].identificador === identificador) {
+    const idAtual = pedidos[i].id || pedidos[i].identificador;
+    if (String(idAtual) === String(identificador)) {
       return pedidos[i];
     }
   }
   return null;
 }
 
-function atualizarPedido(pedidoAtualizado) {
-  const pedidos = listarPedidos();
-  for (let i = 0; i < pedidos.length; i++) {
-    if (pedidos[i].identificador === pedidoAtualizado.identificador) {
-      pedidos[i] = pedidoAtualizado;
+// Atualiza o pedido diretamente no Supabase
+async function atualizarPedido(pedidoAtualizado) {
+  try {
+    const id = pedidoAtualizado.id || pedidoAtualizado.identificador;
+
+    const { error } = await supabaseClient
+      .from('pedidos')
+      .update({
+        status_atual: pedidoAtualizado.statusAtual || pedidoAtualizado.status_atual,
+        previsao_conclusao: pedidoAtualizado.previsaoConclusao || pedidoAtualizado.previsao_conclusao,
+        cliente_notificado: pedidoAtualizado.clienteNotificado || pedidoAtualizado.cliente_notificado
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error("Erro ao atualizar no Supabase:", error.message);
     }
+  } catch (err) {
+    console.error("Erro de conexão ao atualizar:", err);
   }
-  salvarListaPedidos(pedidos);
 }
 
-function gerarIdentificadorPedido() {
-  const numero = Math.floor(100000 + Math.random() * 899999);
-  return "FTZ" + numero;
-}
+// --- SUAS FUNÇÕES ORIGINAIS (Agora com suporte ao Supabase) ---
 
-function criarPedido(dadosPedido) {
-  let nomeRegiao = null;
-  if (dadosPedido.idRegiaoEntrega) {
-    const regiao = buscarRegiaoEntrega(dadosPedido.idRegiaoEntrega);
-    if (regiao !== null) {
-      nomeRegiao = regiao.nome;
-    }
-  }
-
-  const formaPagamento = buscarFormaPagamento(dadosPedido.idFormaPagamento);
-
-  const pedido = {
-    identificador: gerarIdentificadorPedido(),
-    dataHora: new Date().toISOString(),
-    itens: dadosPedido.itens,
-    subtotal: dadosPedido.subtotal,
-    taxaEntrega: dadosPedido.taxaEntrega,
-    valorTotal: dadosPedido.valorTotal,
-    formaRecebimento: dadosPedido.formaRecebimento,
-    regiaoEntrega: nomeRegiao,
-    cep: dadosPedido.cep,
-    formaPagamento: formaPagamento ? formaPagamento.descricao : null,
-    statusAtual: FITZZ.statusPedido.CONFIRMADO,
-    previsaoConclusao: null,
-    clienteNotificado: false
-  };
-
-  const pedidos = listarPedidos();
-  pedidos.push(pedido);
-  salvarListaPedidos(pedidos);
-
-  return pedido;
-}
-
-function listarPedidosConfirmados() {
-  const pedidos = listarPedidos();
+async function listarPedidosConfirmados() {
+  const pedidos = await listarPedidos();
   const confirmados = [];
   for (let i = 0; i < pedidos.length; i++) {
-    if (pedidos[i].statusAtual === FITZZ.statusPedido.CONFIRMADO) {
+    const status = pedidos[i].status_atual || pedidos[i].statusAtual;
+    if (status === FITZZ.statusPedido.CONFIRMADO) {
       confirmados.push(pedidos[i]);
     }
   }
   return confirmados;
 }
 
-function aceitarPedido(identificador, minutosPrevisao) {
-  const pedido = buscarPedidoPorId(identificador);
-  if (pedido === null) {
-    return;
-  }
+async function aceitarPedido(identificador, minutosPrevisao) {
+  const pedido = await buscarPedidoPorId(identificador);
+  if (pedido === null) return;
+
   const previsao = new Date(Date.now() + minutosPrevisao * 60000);
   pedido.previsaoConclusao = previsao.toISOString();
-  atualizarPedido(pedido);
+  await atualizarPedido(pedido);
 }
 
-function iniciarPreparoPedido(identificador) {
-  const pedido = buscarPedidoPorId(identificador);
-  if (pedido === null) {
-    return;
-  }
+async function iniciarPreparoPedido(identificador) {
+  const pedido = await buscarPedidoPorId(identificador);
+  if (pedido === null) return;
+
   pedido.statusAtual = FITZZ.statusPedido.EM_PREPARACAO;
-  atualizarPedido(pedido);
+  await atualizarPedido(pedido);
 }
 
-function finalizarPreparoPedido(identificador) {
-  const pedido = buscarPedidoPorId(identificador);
-  if (pedido === null) {
-    return;
-  }
-  if (pedido.formaRecebimento === FITZZ.formaRecebimento.ENTREGA) {
+async function finalizarPreparoPedido(identificador) {
+  const pedido = await buscarPedidoPorId(identificador);
+  if (pedido === null) return;
+
+  const forma = pedido.forma_recebimento || pedido.formaRecebimento;
+  if (forma === FITZZ.formaRecebimento.ENTREGA) {
     pedido.statusAtual = FITZZ.statusPedido.SAIU_PARA_ENTREGA;
   } else {
     pedido.statusAtual = FITZZ.statusPedido.PRONTO_PARA_RETIRADA;
   }
-  atualizarPedido(pedido);
+  await atualizarPedido(pedido);
 }
 
-function notificarClientePedido(identificador) {
-  const pedido = buscarPedidoPorId(identificador);
-  if (pedido === null) {
-    return;
-  }
+async function notificarClientePedido(identificador) {
+  const pedido = await buscarPedidoPorId(identificador);
+  if (pedido === null) return;
+
   pedido.clienteNotificado = true;
-  atualizarPedido(pedido);
+  await atualizarPedido(pedido);
 }
 
-function finalizarAtendimentoPedido(identificador) {
-  const pedido = buscarPedidoPorId(identificador);
-  if (pedido === null) {
-    return;
-  }
-  if (pedido.formaRecebimento === FITZZ.formaRecebimento.ENTREGA) {
+async function finalizarAtendimentoPedido(identificador) {
+  const pedido = await buscarPedidoPorId(identificador);
+  if (pedido === null) return;
+
+  const forma = pedido.forma_recebimento || pedido.formaRecebimento;
+  if (forma === FITZZ.formaRecebimento.ENTREGA) {
     pedido.statusAtual = FITZZ.statusPedido.ENTREGUE;
   } else {
     pedido.statusAtual = FITZZ.statusPedido.RETIRADO;
   }
-  atualizarPedido(pedido);
+  await atualizarPedido(pedido);
 }
