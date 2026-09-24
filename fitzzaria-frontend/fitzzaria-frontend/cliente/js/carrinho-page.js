@@ -235,7 +235,7 @@ async function finalizarPedido() {
 
     // 4. Redireciona para o acompanhamento usando o ID real do banco
     const idPedido = data[0].id;
-    window.location.href = "acompanhamento.html?pedido=" + idPedido;
+    window.location.href = "confirmacao.html?pedido=" + idPedido;
 
   } catch (err) {
     console.error("Erro de conexão:", err);
