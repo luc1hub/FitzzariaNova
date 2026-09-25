@@ -23,7 +23,6 @@ async function verificarAutenticacao() {
 // Executa a verificação ao carregar a página
 verificarAutenticacao();
 
-
 let identificadorEmAceite = null;
 
 function formatarHora(dataIso) {
@@ -89,7 +88,8 @@ function montarCartaoEmPreparo(pedido) {
 
 function montarCartaoProntoOuSaiu(pedido) {
   const idExibicao = pedido.id || pedido.identificador;
-  const statusAtual = pedido.status_atual || pedido.statusAtual;
+  const statusBruto = pedido.status_atual || pedido.statusAtual || "";
+  const statusAtual = String(statusBruto).replace(/['"]/g, "").trim().toUpperCase();
   const clienteNotificado = pedido.cliente_notificado ?? pedido.clienteNotificado;
 
   let rotuloStatus = "Pronto para retirada";
@@ -120,7 +120,8 @@ function montarCartaoProntoOuSaiu(pedido) {
 
 function montarCartaoConcluido(pedido) {
   const idExibicao = pedido.id || pedido.identificador;
-  const statusAtual = pedido.status_atual || pedido.statusAtual;
+  const statusBruto = pedido.status_atual || pedido.statusAtual || "";
+  const statusAtual = String(statusBruto).replace(/['"]/g, "").trim().toUpperCase();
 
   let html = "<div class=\"order-card\">";
   html += "<div class=\"id\">#" + idExibicao + "</div>";
@@ -146,35 +147,53 @@ function montarColuna(titulo, pedidos, montarCartaoFuncao) {
   return html;
 }
 
+async function renderizarBoard() {
+  try {
+    // Busca lista de pedidos de forma assíncrona do Supabase
+    const todos = await listarPedidos();
 
-for (let i = 0; i < todos.length; i++) {
-    const pedido = todos[i];
-    
-    // Lê o status, remove as aspas inseridas pelo Supabase e converte para maiúsculo
-    const statusBruto = pedido.status_atual || pedido.statusAtual || "";
-    const status = String(statusBruto).replace(/['"]/g, "").trim().toUpperCase();
+    const confirmados = [];
+    const emPreparo = [];
+    const prontosOuSaiu = [];
+    const concluidos = [];
 
-    if (status === FITZZ.statusPedido.CONFIRMADO) {
-      confirmados.push(pedido);
-    } else if (status === FITZZ.statusPedido.EM_PREPARACAO) {
-      emPreparo.push(pedido);
-    } else if (status === FITZZ.statusPedido.PRONTO_PARA_RETIRADA || status === FITZZ.statusPedido.SAIU_PARA_ENTREGA) {
-      prontosOuSaiu.push(pedido);
-    } else {
-      concluidos.push(pedido);
+    if (Array.isArray(todos)) {
+      for (let i = 0; i < todos.length; i++) {
+        const pedido = todos[i];
+        
+        // Trata o texto: remove aspas simples/duplas e converte para maiúsculo
+        const statusBruto = pedido.status_atual || pedido.statusAtual || "CONFIRMADO";
+        const status = String(statusBruto).replace(/['"]/g, "").trim().toUpperCase();
+
+        if (status === FITZZ.statusPedido.CONFIRMADO || status === "CONFIRMADO") {
+          confirmados.push(pedido);
+        } else if (status === FITZZ.statusPedido.EM_PREPARACAO || status === "EM_PREPARACAO") {
+          emPreparo.push(pedido);
+        } else if (
+          status === FITZZ.statusPedido.PRONTO_PARA_RETIRADA || 
+          status === FITZZ.statusPedido.SAIU_PARA_ENTREGA ||
+          status === "PRONTO_PARA_RETIRADA" ||
+          status === "SAIU_PARA_ENTREGA"
+        ) {
+          prontosOuSaiu.push(pedido);
+        } else {
+          concluidos.push(pedido);
+        }
+      }
     }
-  }
 
-  
-  let html = "";
-  html += montarColuna("Confirmado", confirmados, montarCartaoConfirmado);
-  html += montarColuna("Em preparo", emPreparo, montarCartaoEmPreparo);
-  html += montarColuna("Pronto / a caminho", prontosOuSaiu, montarCartaoProntoOuSaiu);
-  html += montarColuna("Concluído", concluidos, montarCartaoConcluido);
+    let html = "";
+    html += montarColuna("Confirmado", confirmados, montarCartaoConfirmado);
+    html += montarColuna("Em preparo", emPreparo, montarCartaoEmPreparo);
+    html += montarColuna("Pronto / a caminho", prontosOuSaiu, montarCartaoProntoOuSaiu);
+    html += montarColuna("Concluído", concluidos, montarCartaoConcluido);
 
-  const elBoard = document.getElementById("board");
-  if (elBoard) {
-    elBoard.innerHTML = html;
+    const elBoard = document.getElementById("board");
+    if (elBoard) {
+      elBoard.innerHTML = html;
+    }
+  } catch (erro) {
+    console.error("Erro ao renderizar o quadro de pedidos:", erro);
   }
 }
 
